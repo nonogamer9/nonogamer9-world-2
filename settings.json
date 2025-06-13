@@ -97,12 +97,12 @@
 		}
 	},
 	"bonziColors": [
-	    "purple",
-	    "blue",
-	    "green",
-	    "red",
-	    "black",
-	    "brown"
+		"purple",
+		"blue",
+		"green",
+		"red",
+		"black",
+		"brown"
 	],
 	"banLength": 1440,
 	"port": 3000,

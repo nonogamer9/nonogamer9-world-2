@@ -26,6 +26,7 @@
     "socket.io-client": "^4.4.1",
     "winston": "^3.1.0",
     "ws": "^8.5.0",
+    "start": "node index.js",
     "xterm": "^4.17.0"
   }
 }

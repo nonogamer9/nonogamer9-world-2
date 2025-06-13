@@ -6,6 +6,9 @@
   "author": "Joseph Judge",
   "private": true,
   "license": "MIT",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "create-react-app": "^5.0.0",
     "dgram": "^1.0.1",

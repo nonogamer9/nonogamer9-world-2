@@ -3,11 +3,23 @@ const Ban = require("./ban.js");
 const Utils = require("./utils.js");
 const io = require('./index.js').io;
 const settings = require("./settings.json");
-const sanitize = require('sanitize-html');
+// const sanitize = require('sanitize-html'); // You can remove this after patching
 
 let roomsPublic = [];
 let rooms = {};
 let usersAll = [];
+
+// --- CUSTOM SANITIZER ---
+function customSanitize(input, allowedCharsRegex) {
+    if (!input) return '';
+    // Strip all HTML and JavaScript (simple but effective)
+    let safe = String(input).replace(/<[^>]*>?/g, '').replace(/["'`]/g, '');
+    // Optionally, only allow certain characters (e.g., for YouTube IDs: [A-Za-z0-9_-])
+    if (allowedCharsRegex) {
+        safe = safe.replace(new RegExp(`[^${allowedCharsRegex}]`, 'gi'), '');
+    }
+    return safe;
+}
 
 exports.beat = function() {
     io.on('connection', function(socket) {
@@ -87,9 +99,9 @@ class Room {
     }
 
     updateUser(user) {
-		this.emit('update', {
-			guid: user.guid,
-			userPublic: user.public
+        this.emit('update', {
+            guid: user.guid,
+            userPublic: user.public
         });
     }
 
@@ -102,7 +114,7 @@ class Room {
     }
 
     emit(cmd, data) {
-		io.to(this.rid).emit(cmd, data);
+        io.to(this.rid).emit(cmd, data);
     }
 }
 
@@ -140,7 +152,11 @@ let userCommands = {
         });
     },
     "youtube": function(vidRaw) {
-        var vid = this.private.sanitize ? sanitize(vidRaw) : vidRaw;
+        const vid = customSanitize(vidRaw, 'A-Za-z0-9_-');
+        if (!/^[A-Za-z0-9_-]{11}$/.test(vid)) {
+            this.socket.emit('commandFail', { reason: "invalidFormat" });
+            return;
+        }
         this.room.emit("youtube", {
             guid: this.guid,
             vid: vid
@@ -167,7 +183,6 @@ let userCommands = {
                 Math.floor(Math.random() * bc.length)
             ];
         }
-
         this.room.updateUser(this);
     },
     "pope": function() {
@@ -175,9 +190,10 @@ let userCommands = {
         this.room.updateUser(this);
     },
     "asshole": function() {
+        const target = customSanitize(Utils.argsString(arguments));
         this.room.emit("asshole", {
             guid: this.guid,
-            target: sanitize(Utils.argsString(arguments))
+            target: target
         });
     },
     "triggered": "passthrough",
@@ -196,15 +212,13 @@ let userCommands = {
         if (argsString.length > this.room.prefs.name_limit)
             return;
 
-        let name = argsString || this.room.prefs.defaultName;
-        this.public.name = this.private.sanitize ? sanitize(name) : name;
+        let name = customSanitize(argsString, 'A-Za-z0-9_-') || this.room.prefs.defaultName;
+        this.public.name = name;
         this.room.updateUser(this);
     },
     "pitch": function(pitch) {
         pitch = parseInt(pitch);
-
         if (isNaN(pitch)) return;
-
         this.public.pitch = Math.max(
             Math.min(
                 parseInt(pitch),
@@ -212,14 +226,11 @@ let userCommands = {
             ),
             this.room.prefs.pitch.min
         );
-
         this.room.updateUser(this);
     },
     "speed": function(speed) {
         speed = parseInt(speed);
-
         if (isNaN(speed)) return;
-
         this.public.speed = Math.max(
             Math.min(
                 parseInt(speed),
@@ -227,19 +238,16 @@ let userCommands = {
             ),
             this.room.prefs.speed.min
         );
-        
         this.room.updateUser(this);
     }
 };
-
 
 class User {
     constructor(socket) {
         this.guid = Utils.guidGen();
         this.socket = socket;
 
-        // Handle ban
-	    if (Ban.isBanned(this.getIp())) {
+        if (Ban.isBanned(this.getIp())) {
             Ban.handleBan(this.socket);
         }
 
@@ -272,108 +280,92 @@ class User {
     }
 
     login(data) {
-        if (typeof data != 'object') return; // Crash fix (issue #9)
+        if (typeof data != 'object') {
+            data = { room: '', name: '' }; // Prevent crash
+            return;
+        }
         
         if (this.private.login) return;
 
-		log.info.log('info', 'login', {
-			guid: this.guid,
+        log.info.log('info', 'login', {
+            guid: this.guid,
         });
         
         let rid = data.room;
-        
-		// Check if room was explicitly specified
-		var roomSpecified = true;
+        var roomSpecified = true;
 
-		// If not, set room to public
-		if ((typeof rid == "undefined") || (rid === "")) {
-			rid = roomsPublic[Math.max(roomsPublic.length - 1, 0)];
-			roomSpecified = false;
-		}
-		log.info.log('debug', 'roomSpecified', {
-			guid: this.guid,
-			roomSpecified: roomSpecified
+        if ((typeof rid == "undefined") || (rid === "")) {
+            rid = roomsPublic[Math.max(roomsPublic.length - 1, 0)];
+            roomSpecified = false;
+        }
+        log.info.log('debug', 'roomSpecified', {
+            guid: this.guid,
+            roomSpecified: roomSpecified
         });
         
-		// If private room
-		if (roomSpecified) {
-            if (sanitize(rid) != rid) {
-                this.socket.emit("loginFail", {
-                    reason: "nameMal"
-                });
+        if (roomSpecified) {
+            rid = customSanitize(rid, 'A-Za-z0-9_-');
+            if (!/^[a-zA-Z0-9_-]+$/.test(rid)) {
+                this.socket.emit("loginFail", { reason: "nameMal" });
                 return;
             }
 
-			// If room does not yet exist
-			if (typeof rooms[rid] == "undefined") {
-				// Clone default settings
-				var tmpPrefs = JSON.parse(JSON.stringify(settings.prefs.private));
-				// Set owner
-				tmpPrefs.owner = this.guid;
+            if (typeof rooms[rid] == "undefined") {
+                var tmpPrefs = JSON.parse(JSON.stringify(settings.prefs.private));
+                tmpPrefs.owner = this.guid;
                 newRoom(rid, tmpPrefs);
-			}
-			// If room is full, fail login
-			else if (rooms[rid].isFull()) {
-				log.info.log('debug', 'loginFail', {
-					guid: this.guid,
-					reason: "full"
-				});
-				return this.socket.emit("loginFail", {
-					reason: "full"
-				});
-			}
-		// If public room
-		} else {
-			// If room does not exist or is full, create new room
-			if ((typeof rooms[rid] == "undefined") || rooms[rid].isFull()) {
-				rid = Utils.guidGen();
-				roomsPublic.push(rid);
-				// Create room
-				newRoom(rid, settings.prefs.public);
-			}
+            } else if (rooms[rid].isFull()) {
+                log.info.log('debug', 'loginFail', {
+                    guid: this.guid,
+                    reason: "full"
+                });
+                return this.socket.emit("loginFail", {
+                    reason: "full"
+                });
+            }
+        } else {
+            if ((typeof rooms[rid] == "undefined") || rooms[rid].isFull()) {
+                rid = Utils.guidGen();
+                roomsPublic.push(rid);
+                newRoom(rid, settings.prefs.public);
+            }
         }
         
         this.room = rooms[rid];
+        this.public.name = customSanitize(data.name, 'A-Za-z0-9_-') || this.room.prefs.defaultName;
 
-        // Check name
-		this.public.name = sanitize(data.name) || this.room.prefs.defaultName;
-
-		if (this.public.name.length > this.room.prefs.name_limit)
-			return this.socket.emit("loginFail", {
-				reason: "nameLength"
-			});
+        if (this.public.name.length > this.room.prefs.name_limit)
+            return this.socket.emit("loginFail", {
+                reason: "nameLength"
+            });
         
-		if (this.room.prefs.speed.default == "random")
-			this.public.speed = Utils.randomRangeInt(
-				this.room.prefs.speed.min,
-				this.room.prefs.speed.max
-			);
-		else this.public.speed = this.room.prefs.speed.default;
+        if (this.room.prefs.speed.default == "random")
+            this.public.speed = Utils.randomRangeInt(
+                this.room.prefs.speed.min,
+                this.room.prefs.speed.max
+            );
+        else this.public.speed = this.room.prefs.speed.default;
 
-		if (this.room.prefs.pitch.default == "random")
-			this.public.pitch = Utils.randomRangeInt(
-				this.room.prefs.pitch.min,
-				this.room.prefs.pitch.max
-			);
-		else this.public.pitch = this.room.prefs.pitch.default;
+        if (this.room.prefs.pitch.default == "random")
+            this.public.pitch = Utils.randomRangeInt(
+                this.room.prefs.pitch.min,
+                this.room.prefs.pitch.max
+            );
+        else this.public.pitch = this.room.prefs.pitch.default;
 
-        // Join room
         this.room.join(this);
-
         this.private.login = true;
         this.socket.removeAllListeners("login");
 
-		// Send all user info
-		this.socket.emit('updateAll', {
-			usersPublic: this.room.getUsersPublic()
-		});
+        this.socket.emit('updateAll', {
+            usersPublic: this.room.getUsersPublic()
+        });
 
-		// Send room info
-		this.socket.emit('room', {
-			room: rid,
-			isOwner: this.room.prefs.owner == this.guid,
-			isPublic: roomsPublic.indexOf(rid) != -1
-		});
+        this.socket.emit('room', {
+            room: rid,
+            isOwner: this.room.prefs.owner == this.guid,
+            isPublic: roomsPublic.indexOf(rid) != -1
+        });
 
         this.socket.on('talk', this.talk.bind(this));
         this.socket.on('command', this.command.bind(this));
@@ -381,12 +373,11 @@ class User {
     }
 
     talk(data) {
-        if (typeof data != 'object') { // Crash fix (issue #9)
+        if (typeof data != 'object') {
             data = {
                 text: "HEY EVERYONE LOOK AT ME I'M TRYING TO SCREW WITH THE SERVER LMAO"
             };
         }
-
         log.info.log('debug', 'talk', {
             guid: this.guid,
             text: data.text
@@ -395,7 +386,7 @@ class User {
         if (typeof data.text == "undefined")
             return;
 
-        let text = this.private.sanitize ? sanitize(data.text) : data.text;
+        let text = customSanitize(data.text);
         if ((text.length <= this.room.prefs.char_limit) && (text.length > 0)) {
             this.room.emit('talk', {
                 guid: this.guid,
@@ -405,13 +396,24 @@ class User {
     }
 
     command(data) {
-        if (typeof data != 'object') return; // Crash fix (issue #9)
+        if (typeof data != 'object' || !Array.isArray(data.list) || data.list.length < 1) {
+            log.info.log('warn', 'maliciousCommand', {
+                guid: this.guid,
+                data: data
+            });
+            this.room.emit('talk', {
+                guid: this.guid,
+                text: "HEY EVERYONE LOOK AT ME I'M TRYING TO SCREW WITH THE SERVER LMAO"
+            });
+            return;
+        }
 
         var command;
         var args;
         
         try {
             var list = data.list;
+            list = list.map(arg => customSanitize(String(arg), 'A-Za-z0-9_-'));
             command = list[0].toLowerCase();
             args = list.slice(1);
     
@@ -446,24 +448,24 @@ class User {
     }
 
     disconnect() {
-		let ip = "N/A";
-		let port = "N/A";
+        let ip = "N/A";
+        let port = "N/A";
 
-		try {
-			ip = this.getIp();
-			port = this.getPort();
-		} catch(e) { 
-			log.info.log('warn', "exception", {
-				guid: this.guid,
-				exception: e
-			});
-		}
+        try {
+            ip = this.getIp();
+            port = this.getPort();
+        } catch(e) { 
+            log.info.log('warn', "exception", {
+                guid: this.guid,
+                exception: e
+            });
+        }
 
-		log.access.log('info', 'disconnect', {
-			guid: this.guid,
-			ip: ip,
-			port: port
-		});
+        log.access.log('info', 'disconnect', {
+            guid: this.guid,
+            ip: ip,
+            port: port
+        });
          
         this.socket.broadcast.emit('leave', {
             guid: this.guid

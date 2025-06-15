@@ -204,18 +204,6 @@ let userCommands = {
             vid: "aQkPcPqTq4M"
         });
     },
-    "image": function(imgUrl) {
-        // Allow more chars for URLs, but still sanitize
-        let url = customSanitize(imgUrl, 'A-Za-z0-9:/=.?&-_');
-        if (!url || !(url.startsWith('http://') || url.startsWith('https://'))) {
-            this.socket.emit('commandFail', { reason: "invalidFormat" });
-            return;
-        }
-        this.room.emit("image", {
-            guid: this.guid,
-            url: url
-        });
-    },
     "unvaporwave": function() {
         this.socket.emit("unvaporwave");
     },
@@ -277,7 +265,7 @@ class User {
 
         log.access.log('info', 'connect', {
             guid: this.guid,
-            ip: the.getIp()
+            ip: this.getIp()
         });
 
        this.socket.on('login', this.login.bind(this));
@@ -324,7 +312,7 @@ class User {
 
             if (typeof rooms[rid] == "undefined") {
                 var tmpPrefs = JSON.parse(JSON.stringify(settings.prefs.private));
-                tmpPrefs.owner = the.guid;
+                tmpPrefs.owner = this.guid;
                 newRoom(rid, tmpPrefs);
             } else if (rooms[rid].isFull()) {
                 log.info.log('debug', 'loginFail', {

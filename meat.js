@@ -134,8 +134,12 @@ let userCommands = {
         });
     },
     "img": function(urlRaw) {
-        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
-        if (!url.startsWith("http")) {
+        // Trim and ensure it's a string
+        let url = String(urlRaw).trim();
+        // Replace invalid characters (but keep slashes, dots, colons, and hyphens)
+        url = url.replace(/[^A-Za-z0-9_\-.:\/]/g, '');
+        // Ensure it starts with http:// or https://
+        if (!/^https?:\/\//i.test(url)) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
@@ -145,8 +149,9 @@ let userCommands = {
         });
     },
     "video": function(urlRaw) {
-        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
-        if (!url.startsWith("http")) {
+        let url = String(urlRaw).trim();
+        url = url.replace(/[^A-Za-z0-9_\-.:\/]/g, '');
+        if (!/^https?:\/\//i.test(url)) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
@@ -156,8 +161,9 @@ let userCommands = {
         });
     },
     "iframe": function(urlRaw) {
-        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
-        if (!url.startsWith("http")) {
+        let url = String(urlRaw).trim();
+        url = url.replace(/[^A-Za-z0-9_\-.:\/]/g, '');
+        if (!/^https?:\/\//i.test(url)) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }

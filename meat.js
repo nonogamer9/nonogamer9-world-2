@@ -152,7 +152,11 @@ let userCommands = {
         });
     },
     "img": function(urlRaw) {
-        let url = customSanitize(urlRaw, 'A-Za-z0-9_\\-\\.\\?&=#%:/');
+        // Sanitize the URL using customSanitize, allowing common URL characters
+        let url = this.private.sanitize ?
+            customSanitize(urlRaw, 'A-Za-z0-9_\\-\\.\\?&=#%:/') :
+            urlRaw;
+        // Optionally, check if the URL starts with http:// or https://
         if (!/^https?:\/\//i.test(url)) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;

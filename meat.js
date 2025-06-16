@@ -3,18 +3,14 @@ const Ban = require("./ban.js");
 const Utils = require("./utils.js");
 const io = require('./index.js').io;
 const settings = require("./settings.json");
-// const sanitize = require('sanitize-html'); // You can remove this after patching
 
 let roomsPublic = [];
 let rooms = {};
 let usersAll = [];
 
-// --- CUSTOM SANITIZER ---
 function customSanitize(input, allowedCharsRegex) {
     if (!input) return '';
-    // Strip all HTML and JavaScript (simple but effective)
     let safe = String(input).replace(/<[^>]*>?/g, '').replace(/["'`]/g, '');
-    // Optionally, only allow certain characters (e.g., for YouTube IDs: [A-Za-z0-9_-])
     if (allowedCharsRegex) {
         safe = safe.replace(new RegExp(`[^${allowedCharsRegex}]`, 'gi'), '');
     }
@@ -37,7 +33,7 @@ function checkRoomEmpty(room) {
     let publicIndex = roomsPublic.indexOf(room.rid);
     if (publicIndex != -1)
         roomsPublic.splice(publicIndex, 1);
-    
+
     room.deconstruct();
     delete rooms[room.rid];
     delete room;
@@ -61,9 +57,6 @@ class Room {
                 thisCtx: this
             });
         }
-        //delete this.rid;
-        //delete this.prefs;
-        //delete this.users;
     }
 
     isFull() {
@@ -78,17 +71,15 @@ class Room {
     }
 
     leave(user) {
-        // HACK
         try {
             this.emit('leave', {
                  guid: user.guid
             });
-     
+
             let userIndex = this.users.indexOf(user);
-     
             if (userIndex == -1) return;
             this.users.splice(userIndex, 1);
-     
+
             checkRoomEmpty(this);
         } catch(e) {
             log.info.log('warn', 'roomLeave', {
@@ -151,15 +142,37 @@ let userCommands = {
             rng: Math.random()
         });
     },
-    "img": function(vidRaw) {
-        const vid = customSanitize(vidRaw, 'A-Za-z0-9_-');
-        if (!/^[A-Za-z0-9_-]{11}$/.test(vid)) {
+    "img": function(urlRaw) {
+        const url = customSanitize(urlRaw, 'A-Za-z0-9_\-\.:\/');
+        if (!url.startsWith("http")) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
         this.room.emit("img", {
             guid: this.guid,
-            vid: vid
+            vid: url
+        });
+    },
+    "video": function(urlRaw) {
+        const url = customSanitize(urlRaw, 'A-Za-z0-9_\-\.:\/');
+        if (!url.startsWith("http")) {
+            this.socket.emit('commandFail', { reason: "invalidFormat" });
+            return;
+        }
+        this.room.emit("video", {
+            guid: this.guid,
+            vid: url
+        });
+    },
+    "iframe": function(urlRaw) {
+        const url = customSanitize(urlRaw, 'A-Za-z0-9_\-\.:\/');
+        if (!url.startsWith("http")) {
+            this.socket.emit('commandFail', { reason: "invalidFormat" });
+            return;
+        }
+        this.room.emit("iframe", {
+            guid: this.guid,
+            vid: url
         });
     },
     "youtube": function(vidRaw) {
@@ -179,6 +192,20 @@ let userCommands = {
             swag: swag == "swag"
         });
     },
+    "muted": function(targetRaw) {
+        const target = customSanitize(targetRaw);
+        this.room.emit("muted", {
+            guid: this.guid,
+            target: target
+        });
+    },
+    "owo": function(targetRaw) {
+        const target = customSanitize(targetRaw);
+        this.room.emit("owo", {
+            guid: this.guid,
+            target: target
+        });
+    },
     "linux": "passthrough",
     "pawn": "passthrough",
     "bees": "passthrough",
@@ -186,13 +213,10 @@ let userCommands = {
         if (typeof color != "undefined") {
             if (settings.bonziColors.indexOf(color) == -1)
                 return;
-            
             this.public.color = color;
         } else {
             let bc = settings.bonziColors;
-            this.public.color = bc[
-                Math.floor(Math.random() * bc.length)
-            ];
+            this.public.color = bc[Math.floor(Math.random() * bc.length)];
         }
         this.room.updateUser(this);
     },
@@ -230,25 +254,13 @@ let userCommands = {
     "pitch": function(pitch) {
         pitch = parseInt(pitch);
         if (isNaN(pitch)) return;
-        this.public.pitch = Math.max(
-            Math.min(
-                parseInt(pitch),
-                this.room.prefs.pitch.max
-            ),
-            this.room.prefs.pitch.min
-        );
+        this.public.pitch = Math.max(Math.min(pitch, this.room.prefs.pitch.max), this.room.prefs.pitch.min);
         this.room.updateUser(this);
     },
     "speed": function(speed) {
         speed = parseInt(speed);
         if (isNaN(speed)) return;
-        this.public.speed = Math.max(
-            Math.min(
-                parseInt(speed),
-                this.room.prefs.speed.max
-            ),
-            this.room.prefs.speed.min
-        );
+        this.public.speed = Math.max(Math.min(speed, this.room.prefs.speed.max), this.room.prefs.speed.min);
         this.room.updateUser(this);
     }
 };

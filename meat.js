@@ -8,15 +8,6 @@ let roomsPublic = [];
 let rooms = {};
 let usersAll = [];
 
-function customSanitize(input, allowedCharsRegex) {
-    if (!input) return '';
-    let safe = String(input).replace(/<[^>]*>?/g, '').replace(/["'`]/g, '');
-    if (allowedCharsRegex) {
-        safe = safe.replace(new RegExp(`[^${allowedCharsRegex}]`, 'gi'), '');
-    }
-    return safe;
-}
-
 exports.beat = function() {
     io.on('connection', function(socket) {
         new User(socket);
@@ -143,7 +134,7 @@ let userCommands = {
         });
     },
     "img": function(urlRaw) {
-        const url = customSanitize(urlRaw, 'A-Za-z0-9_\-\.:\/');
+        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
         if (!url.startsWith("http")) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
@@ -154,7 +145,7 @@ let userCommands = {
         });
     },
     "video": function(urlRaw) {
-        const url = customSanitize(urlRaw, 'A-Za-z0-9_\-\.:\/');
+        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
         if (!url.startsWith("http")) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
@@ -165,7 +156,7 @@ let userCommands = {
         });
     },
     "iframe": function(urlRaw) {
-        const url = customSanitize(urlRaw, 'A-Za-z0-9_\-\.:\/');
+        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
         if (!url.startsWith("http")) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
@@ -176,7 +167,7 @@ let userCommands = {
         });
     },
     "youtube": function(vidRaw) {
-        const vid = customSanitize(vidRaw, 'A-Za-z0-9_-');
+        const vid = String(vidRaw).replace(/[^A-Za-z0-9_-]/g, '');
         if (!/^[A-Za-z0-9_-]{11}$/.test(vid)) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
@@ -193,14 +184,14 @@ let userCommands = {
         });
     },
     "muted": function(targetRaw) {
-        const target = customSanitize(targetRaw);
+        const target = String(targetRaw);
         this.room.emit("muted", {
             guid: this.guid,
             target: target
         });
     },
     "owo": function(targetRaw) {
-        const target = customSanitize(targetRaw);
+        const target = String(targetRaw);
         this.room.emit("owo", {
             guid: this.guid,
             target: target
@@ -225,7 +216,7 @@ let userCommands = {
         this.room.updateUser(this);
     },
     "asshole": function() {
-        const target = customSanitize(Utils.argsString(arguments));
+        const target = Utils.argsString(arguments);
         this.room.emit("asshole", {
             guid: this.guid,
             target: target
@@ -247,7 +238,7 @@ let userCommands = {
         if (argsString.length > this.room.prefs.name_limit)
             return;
 
-        let name = customSanitize(argsString, 'A-Za-z0-9_-') || this.room.prefs.defaultName;
+        let name = String(argsString).replace(/[^A-Za-z0-9_-]/g, '') || this.room.prefs.defaultName;
         this.public.name = name;
         this.room.updateUser(this);
     },
@@ -327,7 +318,7 @@ class User {
         });
         
         if (roomSpecified) {
-            rid = customSanitize(rid, 'A-Za-z0-9_-');
+            rid = String(rid).replace(/[^a-zA-Z0-9_-]/g, '');
             if (!/^[a-zA-Z0-9_-]+$/.test(rid)) {
                 this.socket.emit("loginFail", { reason: "nameMal" });
                 return;
@@ -355,7 +346,7 @@ class User {
         }
         
         this.room = rooms[rid];
-        this.public.name = customSanitize(data.name, 'A-Za-z0-9_-') || this.room.prefs.defaultName;
+        this.public.name = String(data.name).replace(/[^A-Za-z0-9_-]/g, '') || this.room.prefs.defaultName;
 
         if (this.public.name.length > this.room.prefs.name_limit)
             return this.socket.emit("loginFail", {
@@ -409,7 +400,7 @@ class User {
         if (typeof data.text == "undefined")
             return;
 
-        let text = customSanitize(data.text);
+        let text = String(data.text);
         if ((text.length <= this.room.prefs.char_limit) && (text.length > 0)) {
             this.room.emit('talk', {
                 guid: this.guid,
@@ -436,7 +427,7 @@ class User {
         
         try {
             var list = data.list;
-            list = list.map(arg => customSanitize(String(arg), 'A-Za-z0-9_-'));
+            list = list.map(arg => String(arg).replace(/[^A-Za-z0-9_-]/g, ''));
             command = list[0].toLowerCase();
             args = list.slice(1);
     

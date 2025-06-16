@@ -151,19 +151,15 @@ let userCommands = {
             rng: Math.random()
         });
     },
-    "img": function(urlRaw) {
-        // Sanitize the URL using customSanitize, allowing common URL characters
-        let url = this.private.sanitize ?
-            customSanitize(urlRaw, 'A-Za-z0-9_\\-\\.\\?&=#%:/') :
-            urlRaw;
-        // Optionally, check if the URL starts with http:// or https://
-        if (!/^https?:\/\//i.test(url)) {
+    "img": function(vidRaw) {
+        const vid = customSanitize(vidRaw, 'A-Za-z0-9_-');
+        if (!/^[A-Za-z0-9_-]{11}$/.test(vid)) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
         this.room.emit("img", {
             guid: this.guid,
-            url: url
+            vid: vid
         });
     },
     "youtube": function(vidRaw) {

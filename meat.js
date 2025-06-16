@@ -235,8 +235,8 @@ let userCommands = {
         if (argsString.length > this.room.prefs.name_limit)
             return;
 
-        let name = argsString || this.room.prefs.defaultName;
-        this.public.name = this.private.sanitize ? sanitize(name) : name;
+        let name = String(argsString).replace(/[^A-Za-z0-9_-]/g, '') || this.room.prefs.defaultName;
+        this.public.name = name;
         this.room.updateUser(this);
     },
     "pitch": function(pitch) {

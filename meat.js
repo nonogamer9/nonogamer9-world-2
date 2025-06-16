@@ -292,7 +292,7 @@ class User {
 
     login(data) {
         if (typeof data != 'object') {
-            data = { room: '', name: '' };
+            data = { room: '', name: 'nonoFAN' };
             return;
         }
         

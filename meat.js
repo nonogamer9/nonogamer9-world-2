@@ -152,14 +152,11 @@ let userCommands = {
         });
     },
     "img": function(urlRaw) {
-    // Sanitize the URL, allowing common URL characters
         let url = customSanitize(urlRaw, 'A-Za-z0-9_\\-\\.\\?&=#%:/');
-        // Optionally, check if the URL starts with http:// or https://
         if (!/^https?:\/\//i.test(url)) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
-        // Emit the image event to the room
         this.room.emit("img", {
             guid: this.guid,
             url: url

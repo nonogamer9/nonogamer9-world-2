@@ -15,6 +15,10 @@
 				"asshole": 0,
 				"triggered": 0,
 				"img": 0,
+				"video": 0,
+				"iframe": 0,
+				"muted": 0,
+				"owo": 0,
 				"linux": 0,
 				"pitch": 0,
 				"speed": 0,
@@ -54,6 +58,10 @@
 				"asshole": 0,
 				"triggered": 0,
 				"img": 0,
+				"video": 0,
+				"iframe": 0,
+				"muted": 0,
+				"owo": 0,
 				"linux": 0,
 				"pitch": 0,
 				"speed": 0,
@@ -86,16 +94,16 @@
 			"filename": "./logs/info.log",
 			"maxsize": "1024000",
 			"maxFiles": "3",
-		"handleExceptions": true,
-		"humanReadableUnhandledException": true
+			"handleExceptions": true,
+			"humanReadableUnhandledException": true
 		},
 		"access": {
 			"level": "info",
 			"filename": "./logs/access.log",
 			"maxsize": "1024000",
 			"maxFiles": "3",
-		"handleExceptions": true,
-		"humanReadableUnhandledException": true
+			"handleExceptions": true,
+			"humanReadableUnhandledException": true
 		}
 	},
 	"bonziColors": [

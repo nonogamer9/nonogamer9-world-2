@@ -3,6 +3,7 @@ const Ban = require("./ban.js");
 const Utils = require("./utils.js");
 const io = require('./index.js').io;
 const settings = require("./settings.json");
+const sanitize = require('sanitize-html');
 
 let roomsPublic = [];
 let rooms = {};
@@ -134,12 +135,8 @@ let userCommands = {
         });
     },
     "img": function(urlRaw) {
-        // Trim and ensure it's a string
-        let url = String(urlRaw).trim();
-        // Replace invalid characters (but keep slashes, dots, colons, and hyphens)
-        url = url.replace(/[^A-Za-z0-9_\-.:\/]/g, '');
-        // Ensure it starts with http:// or https://
-        if (!/^https?:\/\//i.test(url)) {
+        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
+        if (!url.startsWith("http")) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
@@ -149,9 +146,8 @@ let userCommands = {
         });
     },
     "video": function(urlRaw) {
-        let url = String(urlRaw).trim();
-        url = url.replace(/[^A-Za-z0-9_\-.:\/]/g, '');
-        if (!/^https?:\/\//i.test(url)) {
+        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
+        if (!url.startsWith("http")) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
@@ -161,9 +157,8 @@ let userCommands = {
         });
     },
     "iframe": function(urlRaw) {
-        let url = String(urlRaw).trim();
-        url = url.replace(/[^A-Za-z0-9_\-.:\/]/g, '');
-        if (!/^https?:\/\//i.test(url)) {
+        const url = String(urlRaw).replace(/[^A-Za-z0-9_\-.:\/]/g, '');
+        if (!url.startsWith("http")) {
             this.socket.emit('commandFail', { reason: "invalidFormat" });
             return;
         }
@@ -173,11 +168,7 @@ let userCommands = {
         });
     },
     "youtube": function(vidRaw) {
-        const vid = String(vidRaw).replace(/[^A-Za-z0-9_-]/g, '');
-        if (!/^[A-Za-z0-9_-]{11}$/.test(vid)) {
-            this.socket.emit('commandFail', { reason: "invalidFormat" });
-            return;
-        }
+        const vid = this.private.sanitize ? sanitize(vidRaw) : vidRaw;
         this.room.emit("youtube", {
             guid: this.guid,
             vid: vid
@@ -190,14 +181,14 @@ let userCommands = {
         });
     },
     "muted": function(targetRaw) {
-        const target = String(targetRaw);
+        const target = this.private.sanitize ? sanitize(targetRaw) : targetRaw;
         this.room.emit("muted", {
             guid: this.guid,
             target: target
         });
     },
     "owo": function(targetRaw) {
-        const target = String(targetRaw);
+        const target = this.private.sanitize ? sanitize(targetRaw) : targetRaw;
         this.room.emit("owo", {
             guid: this.guid,
             target: target
@@ -225,7 +216,7 @@ let userCommands = {
         const target = Utils.argsString(arguments);
         this.room.emit("asshole", {
             guid: this.guid,
-            target: target
+            target: this.private.sanitize ? sanitize(target) : target
         });
     },
     "triggered": "passthrough",
@@ -244,8 +235,8 @@ let userCommands = {
         if (argsString.length > this.room.prefs.name_limit)
             return;
 
-        let name = String(argsString).replace(/[^A-Za-z0-9_-]/g, '') || this.room.prefs.defaultName;
-        this.public.name = name;
+        let name = argsString || this.room.prefs.defaultName;
+        this.public.name = this.private.sanitize ? sanitize(name) : name;
         this.room.updateUser(this);
     },
     "pitch": function(pitch) {
@@ -301,7 +292,7 @@ class User {
 
     login(data) {
         if (typeof data != 'object') {
-            data = { room: '', name: '' }; // Prevent crash
+            data = { room: '', name: '' };
             return;
         }
         
@@ -352,7 +343,7 @@ class User {
         }
         
         this.room = rooms[rid];
-        this.public.name = String(data.name).replace(/[^A-Za-z0-9_-]/g, '') || this.room.prefs.defaultName;
+        this.public.name = this.private.sanitize ? sanitize(data.name) : data.name || this.room.prefs.defaultName;
 
         if (this.public.name.length > this.room.prefs.name_limit)
             return this.socket.emit("loginFail", {
@@ -406,7 +397,7 @@ class User {
         if (typeof data.text == "undefined")
             return;
 
-        let text = String(data.text);
+        let text = this.private.sanitize ? sanitize(data.text) : data.text;
         if ((text.length <= this.room.prefs.char_limit) && (text.length > 0)) {
             this.room.emit('talk', {
                 guid: this.guid,
@@ -433,7 +424,6 @@ class User {
         
         try {
             var list = data.list;
-            list = list.map(arg => String(arg).replace(/[^A-Za-z0-9_-]/g, ''));
             command = list[0].toLowerCase();
             args = list.slice(1);
     

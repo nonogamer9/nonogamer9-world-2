@@ -58,8 +58,8 @@ Ban.init();
 // Start actually listening
 server.listen(port, function () {
   console.log(
-    " Welcome to BonziWORLD!\n",
-    "Time to meme!\n",
+    " Welcome to nonogamer9WORLD!\n",
+    "Touhou is the best!\n",
     "----------------------\n",
     "Server listening at port " + port
   );

@@ -1,8 +1,8 @@
 {
 	"prefs": {
 		"public": {
-			"char_limit": 2500,
-			"name_limit": 25,
+			"char_limit": null,
+			"name_limit": null,
 			"godword": null,
 			"runlevel": {
 				"godmode": 0,
@@ -44,8 +44,8 @@
 			"defaultName": "nonoFAN"
 		},
 		"private": {
-			"char_limit": 5000,
-			"name_limit": 25,
+			"char_limit": null,
+			"name_limit": null,
 			"godword": null,
 			"runlevel": {
 				"godmode": 0,

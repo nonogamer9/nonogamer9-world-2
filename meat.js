@@ -232,11 +232,15 @@ let userCommands = {
     },
     "name": function() {
         let argsString = Utils.argsString(arguments);
-        if (argsString.length > this.room.prefs.name_limit)
+        // Always use "nonoFAN" or defaultName if argsString is empty after trim/sanitize
+        let rawName = typeof argsString === "string" ? argsString.trim() : "";
+        let sanitizedName = this.private.sanitize ? sanitize(rawName) : rawName;
+        if (!sanitizedName) {
+            sanitizedName = this.room.prefs.defaultName || "nonoFAN";
+        }
+        if (sanitizedName.length > this.room.prefs.name_limit)
             return;
-        // Always use "nonoFAN" if argsString is empty
-        let name = argsString || "nonoFAN";
-        this.public.name = this.private.sanitize ? sanitize(name) : name;
+        this.public.name = sanitizedName;
         this.room.updateUser(this);
     },
     "pitch": function(pitch) {
@@ -343,7 +347,14 @@ class User {
         }
         
         this.room = rooms[rid];
-        this.public.name = this.private.sanitize ? sanitize(data.name) : data.name || this.room.prefs.defaultName;
+
+        // FIXED: Always sanitize, trim, and default the name if blank
+        let rawName = typeof data.name === "string" ? data.name.trim() : "";
+        let sanitizedName = this.private.sanitize ? sanitize(rawName) : rawName;
+        if (!sanitizedName) {
+            sanitizedName = this.room.prefs.defaultName || "nonoFAN";
+        }
+        this.public.name = sanitizedName;
 
         if (this.public.name.length > this.room.prefs.name_limit)
             return this.socket.emit("loginFail", {

@@ -248,6 +248,11 @@ input[type=text] {
   color: #789922;
 }
 
+.bonzi_crosscolor {
+    border-radius: 16px;
+    opacity: 0.7;
+}
+
 body.vaporwave #content {
   background-color: #008080;
   background-image: url("../img/desktop.vaporwave/logo.png"), url("../img/desktop.vaporwave/bg.png");

@@ -196,7 +196,7 @@ let userCommands = {
     },
     "linux": "passthrough",
     "pawn": "passthrough",
-    "mst3k": "passthrough",
+    "bees": "passthrough",
     "color": function(color) {
         if (typeof color != "undefined") {
             if (settings.bonziColors.indexOf(color) == -1)
@@ -224,7 +224,7 @@ let userCommands = {
         this.socket.emit("vaporwave");
         this.room.emit("youtube", {
             guid: this.guid,
-            vid: "dTT2YYcPEmk"
+            vid: "aQkPcPqTq4M"
         });
     },
     "unvaporwave": function() {
@@ -232,7 +232,6 @@ let userCommands = {
     },
     "name": function() {
         let argsString = Utils.argsString(arguments);
-        // Always use "nonoFAN" or defaultName if argsString is empty after trim/sanitize
         let rawName = typeof argsString === "string" ? argsString.trim() : "";
         let sanitizedName = this.private.sanitize ? sanitize(rawName) : rawName;
         if (!sanitizedName) {
@@ -253,6 +252,21 @@ let userCommands = {
         speed = parseInt(speed);
         if (isNaN(speed)) return;
         this.public.speed = Math.max(Math.min(speed, this.room.prefs.speed.max), this.room.prefs.speed.min);
+        this.room.updateUser(this);
+    },
+    // --- NEW COMMAND: /crosscolor ---
+    "crosscolor": function(urlRaw) {
+        const url = String(urlRaw).trim();
+        // Basic URL validation and sanitization
+        if (!url.startsWith("http") || !/\.(png|jpg|jpeg|gif|webp)$/i.test(url)) {
+            this.socket.emit('commandFail', { reason: "invalidFormat" });
+            return;
+        }
+        this.public.crosscolor = url;
+        this.room.emit("crosscolor", {
+            guid: this.guid,
+            url: url
+        });
         this.room.updateUser(this);
     }
 };
@@ -348,7 +362,6 @@ class User {
         
         this.room = rooms[rid];
 
-        // FIXED: Always sanitize, trim, and default the name if blank
         let rawName = typeof data.name === "string" ? data.name.trim() : "";
         let sanitizedName = this.private.sanitize ? sanitize(rawName) : rawName;
         if (!sanitizedName) {
